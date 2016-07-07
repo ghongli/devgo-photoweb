@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>List Upload Images</title>
+</head>
+<body>
+	<ul>
+		{{ range $.images }}
+		<li><a href="/views?id={{ .|urlQuery }}">{{ .|html }}</a></li>
+		{{ end }}
+	</ul>
+</body>
+</html>

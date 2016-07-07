@@ -13,15 +13,15 @@ import (
 )
 
 const (
+	LIST_DIR = 0x0001
 	UPLOAD_DIR = "./uploads"
 	TEMPLATE_DIR = "./views"
-	LIST_DIR = 0x0001
 )
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "Get" {
+		log.Debug("Get: upload image ")
 		renderHtml(w, "upload", nil)
-		return
 	}
 
 	if r.Method == "POST" {
@@ -106,12 +106,15 @@ func safeHandler(fn http.HandlerFunc) http.HandlerFunc {
 				//http.Error(w, e.Error(), http.StatusInternalServerError)
 				// or output 自定义的 50x error html
 				w.WriteHeader(http.StatusInternalServerError)
-				renderHtml(w, "error", e)
+				errors := make(map[string]interface{})
+				errors["errors"] = e
+				renderHtml(w, "error", errors)
 				log.Warnf("%v - %v", fn, e)
 				log.Debug(string(debug.Stack()))
 			}
 		}()
 
+		log.Debugf("safe handler, use function %+v", fn)
 		fn(w, r)
 	}
 }
@@ -135,6 +138,9 @@ func staticHandler(mux *http.ServeMux, prefix string, staticDir string, flags in
 var templates = make(map[string]*template.Template)
 
 func init() {
+	log.Println("set log output level to ", log.Ldebug)
+	log.SetOutputLevel(log.Ldebug)
+
 	fileInfoArr, err := ioutil.ReadDir(TEMPLATE_DIR)
 	check(err)
 
@@ -149,6 +155,7 @@ func init() {
 		templatePath = TEMPLATE_DIR + "/" + templateName
 		log.Println("Loading template: ", templatePath)
 		t := template.Must(template.ParseFiles(templatePath))
+		log.Println("Loading template name: ", templateName[:strings.LastIndex(templateName, ".")])
 		templates[templateName[:strings.LastIndex(templateName, ".")]] = t
 	}
 }

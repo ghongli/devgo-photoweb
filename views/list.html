@@ -7,7 +7,8 @@
 <body>
 	<ul>
 		{{ range $.images }}
-		<li><a href="/views?id={{ .|urlQuery }}">{{ .|html }}</a></li>
+		// urlQuery
+		<li><a href="/views?id={{ . }}">{{ .|html }}</a></li>
 		{{ end }}
 	</ul>
 </body>

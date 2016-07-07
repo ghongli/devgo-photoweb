@@ -1,10 +1,30 @@
-# For projects using nanoc (http://nanoc.ws/)
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
 
-# Default location for output, needs to match output_dir's value found in config.yaml
-output/
+# Folders
+_obj
+_test
 
-# Temporary file directory
-tmp/
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
 
-# Crash Log
-crash.log
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.exe
+*.test
+*.prof
+
+#Custom
+.DS_Store
+bee
+*.exe~
+.goxc.local.json

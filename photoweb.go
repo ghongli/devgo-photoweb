@@ -9,43 +9,34 @@ import (
 	"io/ioutil"
 	"path"
 	"strings"
+	"runtime/debug"
 )
 
 const (
 	UPLOAD_DIR = "./uploads"
 	TEMPLATE_DIR = "./views"
+	LIST_DIR = 0x0001
 )
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "Get" {
-		if err := renderHtml(w, "upload", nil); err != nil {
-			//http.Error(w, err.Error(), http.StatusInternalServerError)
-			check(err)
-		}
-
+		renderHtml(w, "upload", nil)
 		return
 	}
 
 	if r.Method == "POST" {
 		mf, mfh, err := r.FormFile("image")
-		if err != nil {
-			//http.Error(w, err.Error(), http.StatusInternalServerError)
-			check(err)
-		}
+		check(err)
+
 		filename := mfh.Filename
 		defer mf.Close()
 
-		t, err := os.Create(UPLOAD_DIR + "/" + filename)
-		if err != nil {
-			//http.Error(w, err.Error(), http.StatusInternalServerError)
-			check(err)
-		}
+		t, os_err := os.Create(UPLOAD_DIR + "/" + filename)
+		check(os_err)
 		defer t.Close()
 
-		if _, err := io.Copy(t, mf); err != nil {
-			//http.Error(w, err.Error(), http.StatusInternalServerError)
-			check(err)
-		}
+		_, io_err := io.Copy(t, mf)
+		check(io_err)
 
 		http.Redirect(w, r, "/views?id=" + filename, http.StatusFound)
 	}
@@ -63,10 +54,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	// todo 准确解析出文件的 MimeType ，并将其作为 Content-Type 进行输出
 	// http.DetectContentType() or package mime
 	f, err := ioutil.ReadFile(imagePath)
-	if err != nil {
-		//http.Error(w, err.Error(), http.StatusInternalServerError)
-		check(err)
-	}
+	check(err)
 
 	w.Header().Set("Content-Type", http.DetectContentType(f))
 	http.ServeFile(w, r, imagePath)
@@ -84,30 +72,23 @@ func isExist(path string) (r bool) {
 
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	fileInfoArr, err := ioutil.ReadDir(UPLOAD_DIR)
-	if err != nil {
-		//http.Error(w, err.Error(), http.StatusInternalServerError)
-		check(err)
-	}
+	check(err)
 
 	locals := make(map[string]interface{})
 	images := []string{}
 	for _, fileInfo := range fileInfoArr {
 		images = append(images, fileInfo.Name())
 	}
-	locals["images"] = images
 
-	if err := renderHtml(w, "list", locals); err != nil {
-		//http.Error(w, err.Error(), http.StatusInternalServerError)
-		check(err)
-	}
+	locals["images"] = images
+	renderHtml(w, "list", locals)
 }
 
 // DRY (Don`t Repeat Yourself)
 // 将模板渲染分离出来，单独编写一个处理函数，以便其他业务逻辑处理函数可以使用
-func renderHtml(w http.ResponseWriter, temp string, locals map[string]interface{}) (err error) {
-	err = templates[temp].Execute(w, locals)
-
-	return
+func renderHtml(w http.ResponseWriter, temp string, locals map[string]interface{}) {
+	err := templates[temp].Execute(w, locals)
+	check(err)
 }
 
 // 统一捕获 50x 系列的服务端错误
@@ -117,15 +98,45 @@ func check(err error) {
 	}
 }
 
+// 使用闭包避免程序运行时出错崩溃
+func safeHandler(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if e, ok := recover().(error); ok {
+				//http.Error(w, e.Error(), http.StatusInternalServerError)
+				// or output 自定义的 50x error html
+				w.WriteHeader(http.StatusInternalServerError)
+				renderHtml(w, "error", e)
+				log.Warnf("%v - %v", fn, e)
+				log.Debug(string(debug.Stack()))
+			}
+		}()
+
+		fn(w, r)
+	}
+}
+
+// prefix -> staticDir
+func staticHandler(mux *http.ServeMux, prefix string, staticDir string, flags int) {
+	mux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
+		file := staticDir + r.URL.Path[len(prefix) -1:]
+		if (flags & LIST_DIR) == 0 {
+			if exists := isExist(file); !exists {
+				http.NotFound(w, r)
+				return
+			}
+		}
+
+		http.ServeFile(w, r, file)
+	})
+}
+
 // 绶存所有模板的内容
 var templates = make(map[string]*template.Template)
 
 func init() {
 	fileInfoArr, err := ioutil.ReadDir(TEMPLATE_DIR)
-	if err != nil {
-		panic(err)
-		return
-	}
+	check(err)
 
 	var templateName, templatePath string
 	for _, fileInfo := range fileInfoArr {
@@ -143,10 +154,16 @@ func init() {
 }
 
 func main() {
-	
-	http.HandleFunc("/", listHandler)
-	http.HandleFunc("/views", viewHandler)
-	http.HandleFunc("/upload", uploadHandler)
+	// 静态资源与动态请求的分离
+	mux := http.NewServeMux();
 
-	log.Fatal(http.ListenAndServe(":3002", nil))
+	// Static resources
+	staticHandler(mux, "/bee/", "./public", 0)
+
+	// Dynamic request
+	mux.HandleFunc("/", safeHandler(listHandler))
+	mux.HandleFunc("/views", safeHandler(viewHandler))
+	mux.HandleFunc("/upload", safeHandler(uploadHandler))
+
+	log.Fatal(http.ListenAndServe(":3002", mux))
 }

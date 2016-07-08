@@ -19,8 +19,9 @@ const (
 )
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "Get" {
-		log.Debug("Get: upload image ")
+	log.Printf("upload handle request: %v ", r)
+	if r.Method == "GET" {
+		log.Println("Get: upload image ")
 		renderHtml(w, "upload", nil)
 	}
 
@@ -31,6 +32,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		filename := mfh.Filename
 		defer mf.Close()
 
+		log.Printf("upload image`s filename is %s", filename)
 		t, os_err := os.Create(UPLOAD_DIR + "/" + filename)
 		check(os_err)
 		defer t.Close()
@@ -71,12 +73,14 @@ func isExist(path string) (r bool) {
 }
 
 func listHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("list images from upload dir")
 	fileInfoArr, err := ioutil.ReadDir(UPLOAD_DIR)
 	check(err)
 
 	locals := make(map[string]interface{})
 	images := []string{}
 	for _, fileInfo := range fileInfoArr {
+		log.Println("uplaod image file info is v%", fileInfo)
 		images = append(images, fileInfo.Name())
 	}
 
@@ -87,12 +91,14 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 // DRY (Don`t Repeat Yourself)
 // 将模板渲染分离出来，单独编写一个处理函数，以便其他业务逻辑处理函数可以使用
 func renderHtml(w http.ResponseWriter, temp string, locals map[string]interface{}) {
+	log.Printf("render %s html template", temp)
 	err := templates[temp].Execute(w, locals)
 	check(err)
 }
 
 // 统一捕获 50x 系列的服务端错误
 func check(err error) {
+	log.Printf("check error content %v", err)
 	if err != nil {
 		panic(err)
 	}

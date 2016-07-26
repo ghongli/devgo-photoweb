@@ -1,20 +1,20 @@
 package main
 
 import (
-	"net/http"
 	"github.com/qiniu/log"
-	"io"
-	"os"
 	"html/template"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"os"
 	"path"
-	"strings"
 	"runtime/debug"
+	"strings"
 )
 
 const (
-	LIST_DIR = 0x0001
-	UPLOAD_DIR = "./uploads"
+	LIST_DIR     = 0x0001
+	UPLOAD_DIR   = "./uploads"
 	TEMPLATE_DIR = "./views"
 )
 
@@ -40,7 +40,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		_, io_err := io.Copy(t, mf)
 		check(io_err)
 
-		http.Redirect(w, r, "/views?id=" + filename, http.StatusFound)
+		http.Redirect(w, r, "/views?id="+filename, http.StatusFound)
 	}
 }
 
@@ -128,7 +128,7 @@ func safeHandler(fn http.HandlerFunc) http.HandlerFunc {
 // prefix -> staticDir
 func staticHandler(mux *http.ServeMux, prefix string, staticDir string, flags int) {
 	mux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
-		file := staticDir + r.URL.Path[len(prefix) -1:]
+		file := staticDir + r.URL.Path[len(prefix)-1:]
 		if (flags & LIST_DIR) == 0 {
 			if exists := isExist(file); !exists {
 				http.NotFound(w, r)
@@ -168,7 +168,7 @@ func init() {
 
 func main() {
 	// 静态资源与动态请求的分离
-	mux := http.NewServeMux();
+	mux := http.NewServeMux()
 
 	// Static resources
 	staticHandler(mux, "/bee/", "./public", 0)

@@ -10,6 +10,10 @@ import (
 	"path"
 	"runtime/debug"
 	"strings"
+	"time"
+	"crypto/md5"
+	"strconv"
+	"fmt"
 )
 
 const (
@@ -22,18 +26,31 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("upload handle request: %v ", r)
 	if r.Method == "GET" {
 		log.Println("Get: upload image ")
-		renderHtml(w, "upload", nil)
+		currentTime := time.Now().Unix()
+		h := md5.New()
+		io.WriteString(h, strconv.FormatInt(currentTime, 10))
+		token := fmt.Sprintf("%x", h.Sum(nil))
+
+		locals := make(map[string]interface{})
+		locals["token"] = token
+
+		renderHtml(w, "upload", locals)
+		//renderHtml(w, "upload", nil)
 	}
 
 	if r.Method == "POST" {
+		r.ParseMultipartForm(32 << 20)
 		mf, mfh, err := r.FormFile("image")
 		check(err)
 
 		filename := mfh.Filename
 		defer mf.Close()
 
+		log.Printf("upload file info is %v", mfh.Header)
 		log.Printf("upload image`s filename is %s", filename)
-		t, os_err := os.Create(UPLOAD_DIR + "/" + filename)
+		//t, os_err := os.Create(UPLOAD_DIR + "/" + filename)
+		// have upload dir
+		t, os_err := os.OpenFile(UPLOAD_DIR + "/" + filename, os.O_WRONLY|os.O_CREATE, 0666)
 		check(os_err)
 		defer t.Close()
 
@@ -42,24 +59,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		http.Redirect(w, r, "/views?id="+filename, http.StatusFound)
 	}
-}
-
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	imageId := r.FormValue("id")
-	imagePath := UPLOAD_DIR + "/" + imageId
-
-	if exists := isExist(imagePath); !exists {
-		http.NotFound(w, r)
-		return
-	}
-
-	// todo 准确解析出文件的 MimeType ，并将其作为 Content-Type 进行输出
-	// http.DetectContentType() or package mime
-	f, err := ioutil.ReadFile(imagePath)
-	check(err)
-
-	w.Header().Set("Content-Type", http.DetectContentType(f))
-	http.ServeFile(w, r, imagePath)
 }
 
 func isExist(path string) (r bool) {
@@ -86,6 +85,24 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 
 	locals["images"] = images
 	renderHtml(w, "list", locals)
+}
+
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+	imageId := r.FormValue("id")
+	imagePath := UPLOAD_DIR + "/" + imageId
+
+	if exists := isExist(imagePath); !exists {
+		http.NotFound(w, r)
+		return
+	}
+
+	// todo 准确解析出文件的 MimeType ，并将其作为 Content-Type 进行输出
+	// http.DetectContentType() or package mime
+	f, err := ioutil.ReadFile(imagePath)
+	check(err)
+
+	w.Header().Set("Content-Type", http.DetectContentType(f))
+	http.ServeFile(w, r, imagePath)
 }
 
 // DRY (Don`t Repeat Yourself)

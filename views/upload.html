@@ -7,6 +7,7 @@
 <body>
 	<form method="post" action="/upload" enctype="multipart/form-data">
 		Choose an image to upload: <input type="file" name="image" /><br>
+		<input type="hidden" name="token" value="{{.}}" >
 		<input type="submit" value="Upload" />
 	</form>
 </body>

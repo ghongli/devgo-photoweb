@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/md5"
+	"fmt"
 	"github.com/qiniu/log"
 	"html/template"
 	"io"
@@ -9,11 +11,9 @@ import (
 	"os"
 	"path"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
-	"crypto/md5"
-	"strconv"
-	"fmt"
 )
 
 const (
@@ -50,7 +50,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("upload image`s filename is %s", filename)
 		//t, os_err := os.Create(UPLOAD_DIR + "/" + filename)
 		// have upload dir
-		t, os_err := os.OpenFile(UPLOAD_DIR + "/" + filename, os.O_WRONLY|os.O_CREATE, 0666)
+		t, os_err := os.OpenFile(UPLOAD_DIR+"/"+filename, os.O_WRONLY|os.O_CREATE, 0666)
 		check(os_err)
 		defer t.Close()
 
